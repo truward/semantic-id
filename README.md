@@ -39,18 +39,17 @@ Add to dependencies in your ``pom.xml``
 Then in java code:
 
 ```java
-final IdService idService = new SemanticIdService("foo1");
+final IdCodec userIdCodec = SemanticIdCodec.forService("foo1").withEntityName("user");
 
-//... 
-static final String USER_KEY = "user";
+//...
 
 // create record:
 final long id = database.insertNewRecord(userData);
-return idService.encodeLong(USER_KEY, id);
+return userIdCodec.encodeLong(id); // produces something like "foo1.user.1"
 
 
 // get record
-final long id = idService.decodeLong(USER_KEY, semanticId);
+final long id = userIdCodec.decodeLong(semanticId /* e.g. "foo1.user.1" */);
 final User user = database.queryUser(id); // using internal ID
 return mapToUser(user);
 ```
