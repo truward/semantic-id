@@ -15,9 +15,9 @@ Semantic ID includes 3 parts:
 
 * Encoded service name and version, e.g. 'foo1'
 * Optional, encoded entity name, e.g. 'user'
-* Encoded ID, e.g. 'Q78RT40P789JZX5'
+* Encoded ID, e.g. 'q6b60'
 
-Examples of such IDs: ``foo1.user.Q78RT40P789JZX5``, ``req.9J2HN001H732945``.
+Examples of such IDs: ``foo1.user.q6b60``, ``req.9j35zf3``.
 
 Requirements:
 
@@ -49,7 +49,7 @@ return userIdCodec.encodeLong(id); // produces something like "foo1.user.1"
 
 
 // get record
-final long id = userIdCodec.decodeLong(semanticId /* e.g. "foo1.user.1" */);
+final long id = userIdCodec.decodeLong(semanticId /* e.g. "foo1.user.1" would be converted to 1, and converting of "bar.item.1" would not be possible (resulting in exception) */);
 final User user = database.queryUser(id); // using internal ID
 return mapToUser(user);
 ```
