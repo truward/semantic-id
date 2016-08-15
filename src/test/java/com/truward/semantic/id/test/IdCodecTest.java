@@ -32,7 +32,7 @@ public class IdCodecTest {
     assertEquals("foo1.1", codec.encodeLong(1));
     assertEquals(1, codec.decodeLong("foo1.1"));
     checkTestLongs(codec);
-    assertDecodeLongFails(codec, Arrays.asList("foo1.", "foo1.-", "foo1.012345678901234"));
+    assertDecodeLongFails(codec, Arrays.asList("foo1.", "foo1.-", "foo1.012345678901234", "foo2.1"));
   }
 
   @Test
@@ -41,7 +41,8 @@ public class IdCodecTest {
     assertEquals("foo1.user.1", codec.encodeLong(1));
     assertEquals(1, codec.decodeLong("foo1.user.1"));
     checkTestLongs(codec);
-    assertDecodeLongFails(codec, Arrays.asList("foo1.user.", "foo1.user.-", "foo1.user.12345678901234"));
+    assertDecodeLongFails(codec, Arrays.asList("foo1.user.", "foo1.user.-", "foo1.user.12345678901234",
+        "foo2.user.1", "foo1.book.1"));
   }
 
   private static void assertDecodeLongFails(IdCodec codec, List<String> malformedIds) {
