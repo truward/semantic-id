@@ -16,15 +16,16 @@ public final class IdCodecTest {
 
   @Test
   public void shouldSetNames() {
-    final SemanticIdCodec codec = SemanticIdCodec.forService("foo2").withEntityName("user");
-    assertEquals("foo2", codec.getServiceName());
-    assertEquals("user", codec.getEntityName());
+    assertEquals(Arrays.asList("foo1", "user"), SemanticIdCodec.forPrefixNames("foo1", "user").getPrefixNames());
+    assertEquals(Arrays.asList("foo2", "user"), SemanticIdCodec.forPrefixNames("Foo2", "uSeR").getPrefixNames());
+    assertEquals(Collections.singletonList("foo3"), SemanticIdCodec.forPrefixNames("foo3").getPrefixNames());
+    assertEquals(Collections.emptyList(), SemanticIdCodec.forPrefixNames().getPrefixNames());
   }
 
   @Test
   public void shouldBeAbleToDecodeIdWithServiceName() {
-    final SemanticIdCodec codec1 = SemanticIdCodec.forService("f1");
-    final SemanticIdCodec codec2 = SemanticIdCodec.forService("f2");
+    final SemanticIdCodec codec1 = SemanticIdCodec.forPrefixNames("f1");
+    final SemanticIdCodec codec2 = SemanticIdCodec.forPrefixNames("f2");
 
     assertTrue(codec1.canDecode("f1.abc"));
     assertTrue(codec2.canDecode("f2.abc"));
@@ -40,8 +41,8 @@ public final class IdCodecTest {
 
   @Test
   public void shouldBeAbleToDecodeIdWithServiceNameAndEntityName() {
-    final SemanticIdCodec codec1 = SemanticIdCodec.forService("foo1").withEntityName("user");
-    final SemanticIdCodec codec2 = SemanticIdCodec.forService("foo2").withEntityName("user");
+    final SemanticIdCodec codec1 = SemanticIdCodec.forPrefixNames("foo1", "user");
+    final SemanticIdCodec codec2 = SemanticIdCodec.forPrefixNames("foo2", "user");
 
     assertTrue(codec1.canDecode("foo1.user.abc"));
     assertTrue(codec2.canDecode("foo2.user.abc"));
@@ -54,7 +55,7 @@ public final class IdCodecTest {
 
   @Test
   public void shouldEncodeAndDecodeIdWithSingleServiceName() {
-    final IdCodec codec = SemanticIdCodec.forService("foo1");
+    final IdCodec codec = SemanticIdCodec.forPrefixNames("foo1");
     assertEquals("foo1.1", codec.encodeLong(1));
     assertTrue(codec.canDecode("foo1.1"));
     assertTrue(codec.canDecode("foo1.2"));
@@ -66,7 +67,7 @@ public final class IdCodecTest {
 
   @Test
   public void shouldEncodeAndDecodeIdWithServiceAndEntityName() {
-    final IdCodec codec = SemanticIdCodec.forService("foo1").withEntityName("account");
+    final IdCodec codec = SemanticIdCodec.forPrefixNames("foo1", "account");
     assertEquals("foo1.account.1", codec.encodeLong(1));
     assertEquals(1, codec.decodeLong("foo1.account.1"));
     checkTestValues(codec);
@@ -76,7 +77,7 @@ public final class IdCodecTest {
 
   @Test
   public void shouldEncodeVariadicLengthByteArrayIds() {
-    final IdCodec codec = SemanticIdCodec.forService("book1");
+    final IdCodec codec = SemanticIdCodec.forPrefixNames("book1");
     final List<byte[]> ids = Arrays.asList(
         new byte[] { 0 },
         new byte[] { 1 },
@@ -110,6 +111,16 @@ public final class IdCodecTest {
         assertArrayEquals(id, codec.decodeBytes(strId));
       }
     }
+  }
+
+  @Test
+  public void shouldDecodeIdWithEmptyPrefix() {
+    assertEquals(21L, SemanticIdCodec.forPrefixNames().decodeLong("n"));
+  }
+
+  @Test(expected = IdParsingException.class)
+  public void shouldDisallowInvalidIds() {
+    SemanticIdCodec.forPrefixNames().decodeLong("!");
   }
 
   private static void assertDecodeLongFails(IdCodec codec, List<String> malformedIds) {

@@ -1,13 +1,15 @@
 package com.truward.semantic.id;
 
 import com.truward.semantic.id.exception.IdParsingException;
-import com.truward.semantic.id.util.SimpleBase32;
+import com.truward.semantic.id.util.PadlessBase32;
 
 import javax.annotation.ParametersAreNonnullByDefault;
-import java.util.Objects;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
-import static com.truward.semantic.id.util.SimpleBase32.appendLong;
+import static com.truward.semantic.id.util.PadlessBase32.appendLong;
 
 /**
  * Default implementation of {@link IdCodec} that provides semantic ID encoding.
@@ -15,7 +17,7 @@ import static com.truward.semantic.id.util.SimpleBase32.appendLong;
  * @author Alexander Shabanov
  */
 @ParametersAreNonnullByDefault
-public abstract class SemanticIdCodec implements IdCodec {
+public final class SemanticIdCodec implements IdCodec {
 
   /**
    * Separator for most and least significant bits in UUID keys.
@@ -26,84 +28,68 @@ public abstract class SemanticIdCodec implements IdCodec {
    * Count of digits in UUID encoded in base32 which is two longs + 1,
    * where 1 counts as a placeholder character that separates UUID most and least significant bits.
    */
-  private static final int BASE32_ENCODED_UUID_MAX_SIZE = SimpleBase32.ENCODED_LONG_MAX_SIZE * 2 + 1;
+  private static final int BASE32_ENCODED_UUID_MAX_SIZE = PadlessBase32.ENCODED_LONG_MAX_SIZE * 2 + 1;
 
   /**
    * Max size of encoded byte array.
    */
-  private static final int BASE32_ENCODED_BYTES_MAX_SIZE = MAX_BYTES_ID_SIZE * SimpleBase32.BASE_BITS;
+  private static final int BASE32_ENCODED_BYTES_MAX_SIZE = MAX_BYTES_ID_SIZE * PadlessBase32.BASE_BITS;
 
 
-  private final String serviceName;
+  private final List<String> names;
 
-  private SemanticIdCodec(String serviceName) {
-    Objects.requireNonNull(serviceName, "serviceName");
-    if (serviceName.isEmpty()) {
-      throw new IllegalArgumentException("serviceName cannot be empty");
+  private SemanticIdCodec(String... names) {
+    //noinspection ConstantConditions
+    if (names == null) {
+      throw new IllegalArgumentException("serviceNames");
     }
-    this.serviceName = serviceName.toLowerCase();
+
+    if (names.length == 0) {
+      this.names = Collections.emptyList();
+      return;
+    }
+
+    final String[] namesCopy = new String[names.length];
+    for (int i = 0; i < names.length; ++i) {
+      namesCopy[i] = names[i].toLowerCase();
+    }
+    this.names = names.length > 1 ? Arrays.asList(namesCopy) : Collections.singletonList(namesCopy[0]);
   }
 
   /**
    * Creates new instance of codec for given service.
    *
-   * @param serviceName Service name, the newly created codec should be associated with
+   * @param names Prefix names, the newly created codec should be associated with
    * @return New instance of codec, associated with given service name
    */
-  public static SemanticIdCodec forService(String serviceName) {
-    return new SemanticIdCodecWithServiceName(serviceName);
+  public static SemanticIdCodec forPrefixNames(String... names) {
+    return new SemanticIdCodec(names);
   }
 
   /**
-   * Creates new instance of codec, associated with a given entity name.
-   *
-   * @param entityName Entity name, associated with this encoders, e.g. <pre>user</pre> or <pre>item</pre>.
-   * @return New instance of codec, as1ociated with given entity name
+   * @return Service names plus version, associated with this encoder, e.g. <pre>foo1</pre>
    */
-  public final SemanticIdCodec withEntityName(String entityName) {
-    return new SemanticIdCodecWithServiceAndEntityName(getServiceName(), entityName);
+  public final List<String> getPrefixNames() {
+    return names;
   }
-
-  /**
-   * @return Service name plus version, associated with this encoder, e.g. <pre>foo1</pre>
-   */
-  public final String getServiceName() {
-    return serviceName;
-  }
-
-  /**
-   * @return Entity name, associated with this encoders, e.g. <pre>user</pre> or <pre>item</pre>.
-   */
-  public abstract String getEntityName();
 
   @Override
   public final String encodeLong(long id) {
     final StringBuilder builder = appendPrefix(new StringBuilder(
-        getPrefixLength() + SimpleBase32.ENCODED_LONG_MAX_SIZE));
+        getPrefixLength() + PadlessBase32.ENCODED_LONG_MAX_SIZE));
     appendLong(builder, id);
     return builder.toString();
   }
 
   @Override
   public final long decodeLong(String semanticId) throws IdParsingException {
-    checkCanDecodeId(semanticId, SimpleBase32.ENCODED_LONG_MAX_SIZE);
+    checkCanDecodeId(semanticId, PadlessBase32.ENCODED_LONG_MAX_SIZE);
 
     try {
-      return SimpleBase32.decodeLong(semanticId, getPrefixLength(), semanticId.length());
+      return PadlessBase32.decodeLong(semanticId, getPrefixLength(), semanticId.length());
     } catch (IllegalArgumentException e) {
       throw new IdParsingException("id is malformed", e);
     }
-  }
-
-  @Override
-  public final boolean equals(Object o) {
-    if (this == o) return true;
-    if (!(o instanceof SemanticIdCodec)) return false;
-
-    final SemanticIdCodec that = (SemanticIdCodec) o;
-
-    return serviceName.equals(that.serviceName) && getEntityName().equals(that.getEntityName());
-
   }
 
   @Override
@@ -114,15 +100,24 @@ public abstract class SemanticIdCodec implements IdCodec {
     }
 
     // match serviceName plus dot
-    for (int i = 0; i < serviceName.length(); ++i) {
-      final char otherCh = Character.toLowerCase(semanticId.charAt(i));
-      if (otherCh != serviceName.charAt(i)) {
+    int pos = 0;
+    for (int k = 0; k < getPrefixNames().size(); ++k) {
+      final String prefixName = getPrefixNames().get(k);
+      for (int i = 0; i < prefixName.length(); ++i, ++pos) {
+        final char otherCh = Character.toLowerCase(semanticId.charAt(pos));
+        if (otherCh != prefixName.charAt(i)) {
+          return false;
+        }
+      }
+
+      // match trailing dot
+      if (semanticId.charAt(pos) != '.') {
         return false;
       }
+      ++pos;
     }
 
-    return semanticId.charAt(serviceName.length()) == '.' &&
-        isIdBodyValid(semanticId, prefixLength);
+    return isIdBodyValid(semanticId, pos);
   }
 
   @Override
@@ -136,15 +131,15 @@ public abstract class SemanticIdCodec implements IdCodec {
     }
 
     final StringBuilder builder = appendPrefix(new StringBuilder(
-        getPrefixLength() + (id.length + 1) * SimpleBase32.BASE_BITS));
-    SimpleBase32.appendBytes(builder, id);
+        getPrefixLength() + (id.length + 1) * PadlessBase32.BASE_BITS));
+    PadlessBase32.appendBytes(builder, id);
     return builder.toString();
   }
 
   @Override
   public byte[] decodeBytes(String semanticId, int expectedByteIdSize) throws IdParsingException {
     checkCanDecodeId(semanticId, BASE32_ENCODED_BYTES_MAX_SIZE);
-    return SimpleBase32.decodeBytes(semanticId, getPrefixLength(), semanticId.length());
+    return PadlessBase32.decodeBytes(semanticId, getPrefixLength(), semanticId.length());
   }
 
   @Override
@@ -169,8 +164,8 @@ public abstract class SemanticIdCodec implements IdCodec {
         throw new IdParsingException("There is no separator for most/least UUID bits");
       }
 
-      final long mostSigBits = SimpleBase32.decodeLong(semanticId, idBodyStart, midLen);
-      final long leastSigBits = SimpleBase32.decodeLong(semanticId, midLen + 1, semanticId.length());
+      final long mostSigBits = PadlessBase32.decodeLong(semanticId, idBodyStart, midLen);
+      final long leastSigBits = PadlessBase32.decodeLong(semanticId, midLen + 1, semanticId.length());
 
       return new UUID(mostSigBits, leastSigBits);
     } catch (NumberFormatException e) {
@@ -179,35 +174,44 @@ public abstract class SemanticIdCodec implements IdCodec {
   }
 
   @Override
+  public final boolean equals(Object o) {
+    if (this == o) return true;
+    if (!(o instanceof SemanticIdCodec)) return false;
+
+    final SemanticIdCodec that = (SemanticIdCodec) o;
+
+    return getPrefixNames().equals(that.getPrefixNames());
+
+  }
+
+  @Override
   public final int hashCode() {
-    int result = getServiceName().hashCode();
-    result = 31 * result + getEntityName().hashCode();
-    return result;
+    return getPrefixNames().hashCode();
   }
 
   @Override
   public final String toString() {
-    return "SemanticIdCodec{" +
-        "serviceName='" + getServiceName() + '\'' +
-        ", entityName='" + getEntityName() + '\'' +
-        '}';
-  }
-
-  //
-  // Protected
-  //
-
-  protected int getPrefixLength() {
-    return getServiceName().length() + 1;
-  }
-
-  protected StringBuilder appendPrefix(StringBuilder builder) {
-    return builder.append(getServiceName()).append('.');
+    return appendPrefix(new StringBuilder(100)).append("<codec>").toString();
   }
 
   //
   // Private
   //
+
+  private int getPrefixLength() {
+    int result = 0;
+    for (int i = 0; i < getPrefixNames().size(); ++i) {
+      result = result + getPrefixNames().get(i).length() + 1;
+    }
+    return result;
+  }
+
+  private StringBuilder appendPrefix(StringBuilder builder) {
+    for (int i = 0; i < getPrefixNames().size(); ++i) {
+      builder.append(getPrefixNames().get(i)).append('.');
+    }
+    return builder;
+  }
 
   private void checkCanDecodeId(String semanticId, int maxLength) throws IdParsingException {
     if (semanticId.length() > getPrefixLength() + maxLength) {
@@ -224,7 +228,7 @@ public abstract class SemanticIdCodec implements IdCodec {
     }
   }
 
-  final boolean isIdBodyValid(CharSequence semanticId, int prefixLength) {
+  private boolean isIdBodyValid(CharSequence semanticId, int prefixLength) {
     if (semanticId.length() <= prefixLength) {
       return false;
     }
@@ -238,56 +242,5 @@ public abstract class SemanticIdCodec implements IdCodec {
     }
 
     return true;
-  }
-
-  private static final class SemanticIdCodecWithServiceName extends SemanticIdCodec {
-    SemanticIdCodecWithServiceName(String serviceName) {
-      super(serviceName);
-    }
-
-    @Override
-    public String getEntityName() {
-      return "";
-    }
-  }
-
-  private static final class SemanticIdCodecWithServiceAndEntityName extends SemanticIdCodec {
-    private final String entityName;
-
-    SemanticIdCodecWithServiceAndEntityName(String serviceName, String entityName) {
-      super(serviceName);
-      this.entityName = Objects.requireNonNull(entityName, "entityName").toLowerCase();
-    }
-
-    @Override
-    public String getEntityName() {
-      return entityName;
-    }
-
-    @Override
-    protected int getPrefixLength() {
-      return getServiceName().length() + entityName.length() + 2;
-    }
-
-    @Override
-    protected StringBuilder appendPrefix(StringBuilder builder) {
-      return super.appendPrefix(builder).append(getEntityName()).append('.');
-    }
-
-    @Override
-    public boolean canDecode(String semanticId) {
-      if (!super.canDecode(semanticId)) {
-        return false;
-      }
-
-      final int prefixLength = getPrefixLength();
-      for (int i = 0; i < getEntityName().length(); ++i) {
-        final char otherCh = Character.toLowerCase(semanticId.charAt(getServiceName().length() + 1 + i));
-        if (otherCh != getEntityName().charAt(i)) {
-          return false;
-        }
-      }
-      return semanticId.charAt(prefixLength - 1) == '.' && isIdBodyValid(semanticId, prefixLength);
-    }
   }
 }

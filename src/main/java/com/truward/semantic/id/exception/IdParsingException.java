@@ -5,7 +5,7 @@ package com.truward.semantic.id.exception;
  *
  * @author Alexander Shabanov
  */
-public class IdParsingException extends IdCodingException {
+public class IdParsingException extends RuntimeException {
 
   public IdParsingException(String message) {
     super(message);

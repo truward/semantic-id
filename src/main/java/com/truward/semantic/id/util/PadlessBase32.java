@@ -4,15 +4,26 @@ import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.Arrays;
 
 /**
- * Simple case insensitive Base32 encoding/decoding utility class.
- * This simplified version uses {@link StringBuilder} as opposed to more complicated version that works with
- * {@link Appendable} to make code as simple as possible.
+ * Simple case insensitive *AND* padless Base32 encoding/decoding utility class.
+ * <p>
+ * Padless feature allows creating smaller encoding sequence as it doesn't require encoder to append padding
+ * characters.
+ * For example, classic Base32 yields <code>IFBEGRCFIY======</code> for a string <code>ABCDEF</code> and this string
+ * shows that there can be up to 6 of padding characters (see also RFC4648).
+ * </p>
+ * <p>
+ * This encoder ignores padding and as an ugly consequence of this encoded Base32 strings cannot be appended safely
+ * unless encoded bytes length is divisible by 5. This is acceptable though if appending encoded sequences is not
+ * required which is usually the case for things like encoding IDs or arrays for storing in the database.
+ * If appending streams is required, given streams shall be decoded first, decoded byte sequence appended and then
+ * encoded as a whole again.
+ * </p>
  *
  * @author Alexander Shabanov
  */
 @ParametersAreNonnullByDefault
-public final class SimpleBase32 {
-  private SimpleBase32() {} // hidden
+public final class PadlessBase32 {
+  private PadlessBase32() {} // hidden
 
   /**
    * 5 is how much bits does element in this base occupy (32 is 2^5).
@@ -142,7 +153,7 @@ public final class SimpleBase32 {
         ++nextResultPos;
         nextBitOffset = 0;
       } else if (nextBitOffset == Byte.SIZE) {
-        // proceed to next byte and next base32 element (bit bounds matched)
+        // proceed to the next byte and next base32 element (bit bounds matched)
         ++nextResultPos;
         ++charPos;
         nextBitOffset = 0;
