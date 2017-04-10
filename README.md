@@ -32,14 +32,14 @@ Add to dependencies in your ``pom.xml``
 <dependency>
   <groupId>com.truward.semantic</groupId>
   <artifactId>semantic-id</artifactId>
-  <version>1.0.0</version>
+  <version>LATEST</version> <!-- Use of specific version instead of LATEST is preferred -->
 </dependency>
 ```
 
 Then in java code:
 
 ```java
-final IdCodec userIdCodec = SemanticIdCodec.forService("foo1").withEntityName("user");
+final IdCodec userIdCodec = SemanticIdCodec.forPrefixNames("foo1", "user");
 
 //...
 
