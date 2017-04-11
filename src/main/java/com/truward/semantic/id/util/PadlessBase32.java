@@ -31,24 +31,29 @@ public final class PadlessBase32 {
   public static final int BASE_BITS = 5;
 
   /**
+   * Total number of elements in the base alphabet (32).
+   */
+  public static final int BASE = 1 << BASE_BITS;
+
+  /**
    * Mask to apply to byte sequence to yield a number between 0 and base maximum.
    */
-  private static final int BASE_MASK = (1 << BASE_BITS) - 1;
+  private static final int BASE_MASK = BASE - 1;
 
   /**
    * Count of digits in long encoded in base32 which is equal to <pre>ceil(64 / 5) == 13</pre>.
    */
-  public static final int ENCODED_LONG_MAX_SIZE = (Long.SIZE + BASE_BITS - 1) / BASE_BITS;
+  public static final int ENCODED_LONG_MAX_SIZE = getEncodedSize(Long.BYTES);
 
   /**
-   * Appends long and converts it into Base32 to the given string builder.
+   * Appends long and converts it into Base32 using the given string builder.
    *
    * @param builder String builder, to append number to
    * @param num Number to append
    */
   public static void appendLong(StringBuilder builder, long num) {
     if (num == 0) {
-      builder.append((char) CHARS[0]);
+      builder.append(getBaseChar(0));
       return;
     }
 
@@ -59,7 +64,7 @@ public final class PadlessBase32 {
       num = num >>> BASE_BITS;
 
       // NOTE: this is different from usual num-to-str conversion style for simplicity
-      builder.append((char) CHARS[digitChar]);
+      builder.append(getBaseChar(digitChar));
     }
   }
 
@@ -90,10 +95,9 @@ public final class PadlessBase32 {
     final int fullBase32ElemCount = bodyBits / BASE_BITS;
     final int partialBase32ElemBits = bodyBits % BASE_BITS;
 
+    int startPosByte = 0;
+    int offsetBitPos = 0;
     for (int i = 0; i < fullBase32ElemCount; ++i) {
-      final int startPosBit = i * BASE_BITS;
-      final int startPosByte = startPosBit / Byte.SIZE;
-      final int offsetBitPos = startPosBit % Byte.SIZE;
       final int endBitPos = offsetBitPos + BASE_BITS;
       int elem = ((int) body[startPosByte]) & 0xff;
 
@@ -101,14 +105,19 @@ public final class PadlessBase32 {
       if (endBitPos > Byte.SIZE) {
         final int tailBitCount = (endBitPos - Byte.SIZE);
         base32ElemIndex |= (body[startPosByte + 1] & ((1 << tailBitCount) - 1)) << (BASE_BITS - tailBitCount);
+        ++startPosByte;
+        offsetBitPos = endBitPos - Byte.SIZE;
+      } else {
+        offsetBitPos = endBitPos;
       }
-      builder.append((char) CHARS[base32ElemIndex]);
+
+      builder.append(getBaseChar(base32ElemIndex));
     }
 
     if (partialBase32ElemBits > 0) {
       final int lastElem = ((int) body[body.length - 1]) & 0xff;
       final int base32ElemIndex = lastElem >>> (Byte.SIZE - partialBase32ElemBits);
-      builder.append((char) CHARS[base32ElemIndex]);
+      builder.append(getBaseChar(base32ElemIndex));
     }
   }
 
@@ -170,6 +179,26 @@ public final class PadlessBase32 {
     return result;
   }
 
+  /**
+   * Returns Base32 character corresponding to the given index.
+   *
+   * @param index Index of base32 character, from 0 (inclusive) to 32 (exclusive)
+   * @return Corresponding character
+   */
+  public static char getBaseChar(int index) {
+    return (char) CHARS[index];
+  }
+
+  /**
+   * Calculates how many Base32 characters would it take to encode byte sequence of the specified size.
+   *
+   * @param byteSize Size of sequence, in bytes
+   * @return Count of Base32 characters to encode sequence of given size
+   */
+  public static int getEncodedSize(int byteSize) {
+    return (byteSize * Byte.SIZE + BASE_BITS - 1) / BASE_BITS;
+  }
+
   //
   // Private
   //
@@ -192,9 +221,9 @@ public final class PadlessBase32 {
    */
   private static final byte[] CHARS = {
       '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-      'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'j', 'k',
-      'm', 'n', 'p', 'q', 'r', 's', 't', 'v', 'w', 'x',
-      'y', 'z'
+      'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K',
+      'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'X',
+      'Y', 'Z'
   };
 
   /**
@@ -206,9 +235,11 @@ public final class PadlessBase32 {
 
   // Static initializer block for {@link #BASE32_CHAR_TO_INT_MAP}
   static {
+    assert CHARS.length == BASE;
+
     Arrays.fill(CHAR_TO_INT_MAP, (byte) -1);
     for (int charIndex = 0; charIndex < CHARS.length; ++charIndex) {
-      final char ch = (char) CHARS[charIndex];
+      final char ch = getBaseChar(charIndex);
       CHAR_TO_INT_MAP[Character.toLowerCase(ch)] = (byte) charIndex;
       CHAR_TO_INT_MAP[Character.toUpperCase(ch)] = (byte) charIndex;
     }

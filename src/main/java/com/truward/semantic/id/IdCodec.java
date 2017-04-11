@@ -3,6 +3,7 @@ package com.truward.semantic.id;
 import com.truward.semantic.id.exception.IdParsingException;
 
 import javax.annotation.ParametersAreNonnullByDefault;
+import java.util.Random;
 import java.util.UUID;
 
 /**
@@ -50,6 +51,15 @@ public interface IdCodec {
    * @return Encoded ID
    */
   String encodeBytes(byte[] id);
+
+  /**
+   * Encodes a random sequence of bytes.
+   *
+   * @param random Random generator instance
+   * @param byteSize Count of bytes taken from random generator to create a resultant sequence
+   * @return Encoded ID
+   */
+  String encodeRandomBytes(Random random, int byteSize);
 
   /**
    * Decodes opaque semantic ID, previously encoded with {@link #encodeBytes(byte[])} method.

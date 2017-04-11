@@ -4,12 +4,10 @@ import com.truward.semantic.id.exception.IdParsingException;
 import com.truward.semantic.id.util.PadlessBase32;
 
 import javax.annotation.ParametersAreNonnullByDefault;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 import static com.truward.semantic.id.util.PadlessBase32.appendLong;
+import static com.truward.semantic.id.util.PadlessBase32.getEncodedSize;
 
 /**
  * Default implementation of {@link IdCodec} that provides semantic ID encoding.
@@ -50,8 +48,9 @@ public final class SemanticIdCodec implements IdCodec {
     }
 
     final String[] namesCopy = new String[names.length];
+    //noinspection ManualArrayCopy
     for (int i = 0; i < names.length; ++i) {
-      namesCopy[i] = names[i].toLowerCase();
+      namesCopy[i] = names[i]; // retain casing
     }
     this.names = names.length > 1 ? Arrays.asList(namesCopy) : Collections.singletonList(namesCopy[0]);
   }
@@ -75,9 +74,10 @@ public final class SemanticIdCodec implements IdCodec {
 
   @Override
   public final String encodeLong(long id) {
-    final StringBuilder builder = appendPrefix(new StringBuilder(
-        getPrefixLength() + PadlessBase32.ENCODED_LONG_MAX_SIZE));
+    final int capacity = getPrefixLength() + PadlessBase32.ENCODED_LONG_MAX_SIZE;
+    final StringBuilder builder = appendPrefix(new StringBuilder(capacity));
     appendLong(builder, id);
+    assert capacity == builder.capacity();
     return builder.toString();
   }
 
@@ -105,7 +105,7 @@ public final class SemanticIdCodec implements IdCodec {
       final String prefixName = getPrefixNames().get(k);
       for (int i = 0; i < prefixName.length(); ++i, ++pos) {
         final char otherCh = Character.toLowerCase(semanticId.charAt(pos));
-        if (otherCh != prefixName.charAt(i)) {
+        if (otherCh != Character.toLowerCase(prefixName.charAt(i))) {
           return false;
         }
       }
@@ -130,25 +130,49 @@ public final class SemanticIdCodec implements IdCodec {
       throw new IllegalArgumentException("ID is too big");
     }
 
-    final StringBuilder builder = appendPrefix(new StringBuilder(
-        getPrefixLength() + (id.length + 1) * PadlessBase32.BASE_BITS));
+    final int capacity = getPrefixLength() + getEncodedSize(id.length);
+    final StringBuilder builder = appendPrefix(new StringBuilder(capacity));
     PadlessBase32.appendBytes(builder, id);
+    assert capacity == builder.capacity(); // Test only: make sure that capacity is still the same
+    return builder.toString();
+  }
+
+  @Override
+  public String encodeRandomBytes(Random random, int byteSize) {
+    if (byteSize <= 0) {
+      throw new IllegalArgumentException("byteSize");
+    }
+
+    final int encodedSize = getEncodedSize(byteSize);
+    final int capacity = getPrefixLength() + encodedSize;
+    final StringBuilder builder = appendPrefix(new StringBuilder(capacity));
+    for (int i = 0; i < encodedSize; ++i) {
+      final char base32Char = PadlessBase32.getBaseChar(random.nextInt(PadlessBase32.BASE));
+      builder.append(base32Char);
+    }
+    assert capacity == builder.capacity();
     return builder.toString();
   }
 
   @Override
   public byte[] decodeBytes(String semanticId, int expectedByteIdSize) throws IdParsingException {
-    checkCanDecodeId(semanticId, BASE32_ENCODED_BYTES_MAX_SIZE);
+    if (expectedByteIdSize == 0) {
+      throw new IllegalArgumentException("expectedByteIdSize");
+    }
+
+    checkCanDecodeId(semanticId, expectedByteIdSize > 0 ? expectedByteIdSize : BASE32_ENCODED_BYTES_MAX_SIZE);
     return PadlessBase32.decodeBytes(semanticId, getPrefixLength(), semanticId.length());
   }
 
   @Override
   public String encodeUUID(UUID id) {
-    final StringBuilder builder = appendPrefix(new StringBuilder(
-        getPrefixLength() + BASE32_ENCODED_UUID_MAX_SIZE));
+    final int capacity = getPrefixLength() + BASE32_ENCODED_UUID_MAX_SIZE;
+    final StringBuilder builder = appendPrefix(new StringBuilder(capacity));
     appendLong(builder, id.getMostSignificantBits());
     builder.append(UUID_BITS_SEPARATOR);
     appendLong(builder, id.getLeastSignificantBits());
+
+    assert capacity == builder.capacity();
 
     return builder.toString();
   }

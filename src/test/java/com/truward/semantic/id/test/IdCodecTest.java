@@ -17,7 +17,7 @@ public final class IdCodecTest {
   @Test
   public void shouldSetNames() {
     assertEquals(Arrays.asList("foo1", "user"), SemanticIdCodec.forPrefixNames("foo1", "user").getPrefixNames());
-    assertEquals(Arrays.asList("foo2", "user"), SemanticIdCodec.forPrefixNames("Foo2", "uSeR").getPrefixNames());
+    assertEquals(Arrays.asList("Foo2", "User"), SemanticIdCodec.forPrefixNames("Foo2", "User").getPrefixNames());
     assertEquals(Collections.singletonList("foo3"), SemanticIdCodec.forPrefixNames("foo3").getPrefixNames());
     assertEquals(Collections.emptyList(), SemanticIdCodec.forPrefixNames().getPrefixNames());
   }
@@ -28,7 +28,8 @@ public final class IdCodecTest {
     final SemanticIdCodec codec2 = SemanticIdCodec.forPrefixNames("f2");
 
     assertTrue(codec1.canDecode("f1.abc"));
-    assertTrue(codec2.canDecode("f2.abc"));
+    assertTrue(codec1.canDecode("F1.AbC"));
+    assertTrue(codec2.canDecode("f2.aBc"));
 
     assertFalse(codec1.canDecode("f2.abc"));
     assertFalse(codec2.canDecode("f1.abc"));
@@ -46,6 +47,8 @@ public final class IdCodecTest {
 
     assertTrue(codec1.canDecode("foo1.user.abc"));
     assertTrue(codec2.canDecode("foo2.user.abc"));
+    assertTrue(codec1.canDecode("FoO1.UsER.abc"));
+    assertTrue(codec2.canDecode("FOO2.USER.abc"));
 
     assertFalse(codec1.canDecode("f1.abc"));
     assertFalse(codec2.canDecode("f2.abc"));
@@ -67,8 +70,8 @@ public final class IdCodecTest {
 
   @Test
   public void shouldEncodeAndDecodeIdWithServiceAndEntityName() {
-    final IdCodec codec = SemanticIdCodec.forPrefixNames("foo1", "account");
-    assertEquals("foo1.account.1", codec.encodeLong(1));
+    final IdCodec codec = SemanticIdCodec.forPrefixNames("Foo1", "Account");
+    assertEquals("Foo1.Account.1", codec.encodeLong(1));
     assertEquals(1, codec.decodeLong("foo1.account.1"));
     checkTestValues(codec);
     assertDecodeLongFails(codec, Arrays.asList("foo1.account.", "foo1.account.-", "foo1.account.12345678901234",
@@ -109,18 +112,49 @@ public final class IdCodecTest {
 
         final String strId = codec.encodeBytes(id);
         assertArrayEquals(id, codec.decodeBytes(strId));
+
+        // shuffle casing
+        final char[] mixCaseStr = strId.toCharArray();
+        for (int i = 0; i < mixCaseStr.length; ++i) {
+          final char ch = mixCaseStr[i];
+          mixCaseStr[i] = random.nextBoolean() ? Character.toUpperCase(ch) : Character.toLowerCase(ch);
+        }
+        assertArrayEquals(id, codec.decodeBytes(new String(mixCaseStr)));
       }
     }
   }
 
   @Test
-  public void shouldDecodeIdWithEmptyPrefix() {
+  public void shouldDecodeAndEncodeIdWithEmptyPrefix() {
     assertEquals(21L, SemanticIdCodec.forPrefixNames().decodeLong("n"));
+    assertEquals("N", SemanticIdCodec.forPrefixNames().encodeLong(21L));
   }
 
   @Test(expected = IdParsingException.class)
   public void shouldDisallowInvalidIds() {
     SemanticIdCodec.forPrefixNames().decodeLong("!");
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void shouldDisallowEncodingNegativeRandomBytes() {
+    SemanticIdCodec.forPrefixNames("Codec").encodeRandomBytes(new Random(), -1);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void shouldDisallowEncodingZeroRandomBytes() {
+    SemanticIdCodec.forPrefixNames("Codec").encodeRandomBytes(new Random(), 0);
+  }
+
+  @Test
+  public void shouldEncodeRandomBytesWithPrefixedEncoder() {
+    final IdCodec codec = SemanticIdCodec.forPrefixNames("My", "Codec");
+    final Random random = new Random(123124L);
+
+    for (int len = 1; len <= SemanticIdCodec.MAX_BYTES_ID_SIZE; ++len) {
+      final String id = codec.encodeRandomBytes(random, len);
+      final byte[] bytes = codec.decodeBytes(id);
+      assertEquals(len, bytes.length);
+    }
   }
 
   private static void assertDecodeLongFails(IdCodec codec, List<String> malformedIds) {
