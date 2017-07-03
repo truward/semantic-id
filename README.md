@@ -17,12 +17,12 @@ Semantic ID includes 3 parts:
 * Optional, encoded entity name, e.g. 'user'
 * Encoded ID, e.g. 'q6b60'
 
-Examples of such IDs: ``foo1.user.q6b60``, ``req.9j35zf3``.
+Examples of such IDs: ``foo1-user-q6b60``, ``req-9j35zf3``.
 
 Requirements:
 
-* ID should be case insensitive, i.e. semantic ID ``a.b.1cd`` should always be equivalent to ``A.B.1CD`` and vice versa.
-* Encoded service name and version is always required part of semantic ID. E.g. ``foo1.qw1`` is a valid semantic ID (with service name ``foo`` and version ``1``), ``qw1`` is not.
+* ID should be case insensitive, i.e. semantic ID ``a-b-1cd`` should always be equivalent to ``A-B-1CD`` and vice versa.
+* Encoded service name and version is always required part of semantic ID. E.g. ``foo1-qw1`` is a valid semantic ID (with service name ``foo`` and version ``1``), ``qw1`` is not.
 
 # How to use
 
@@ -45,11 +45,11 @@ final IdCodec userIdCodec = SemanticIdCodec.forPrefixNames("foo1", "user");
 
 // create record:
 final long id = database.insertNewRecord(userData);
-return userIdCodec.encodeLong(id); // produces something like "foo1.user.1"
+return userIdCodec.encodeLong(id); // produces something like "foo1-user-1"
 
 
 // get record
-final long id = userIdCodec.decodeLong(semanticId /* e.g. "foo1.user.1" would be converted to 1, and converting of "bar.item.1" would not be possible (resulting in exception) */);
+final long id = userIdCodec.decodeLong(semanticId /* e.g. "foo1-user-1" would be converted to 1, and converting of "bar-item-1" would not be possible (resulting in exception) */);
 final User user = database.queryUser(id); // using internal ID
 return mapToUser(user);
 ```

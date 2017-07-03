@@ -1,6 +1,12 @@
 Release Notes: semantic-id
 ==========================
 
+# 3.0.3
+
+* Use dashes instead of dots (breaks backward compatibility)
+  * Why? - Dots are dropped because of (1) confusion with filename extensions and (2) resemblance to wildcards
+* PadlessBase32 use lowercase for output
+
 # 2.0.2
 
 * SemanticIdCodec now retains casing for given prefix (backward compatible)

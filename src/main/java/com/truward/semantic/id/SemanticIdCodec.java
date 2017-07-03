@@ -20,7 +20,12 @@ public final class SemanticIdCodec implements IdCodec {
   /**
    * Separator for most and least significant bits in UUID keys.
    */
-  private static final char UUID_BITS_SEPARATOR = '-';
+  private static final char UUID_BITS_SEPARATOR = '$';
+
+  /**
+   * Separator between ID components
+   */
+  private static final char PREFIX_SEPARATOR = '-';
 
   /**
    * Count of digits in UUID encoded in base32 which is two longs + 1,
@@ -111,7 +116,7 @@ public final class SemanticIdCodec implements IdCodec {
       }
 
       // match trailing dot
-      if (semanticId.charAt(pos) != '.') {
+      if (semanticId.charAt(pos) != PREFIX_SEPARATOR) {
         return false;
       }
       ++pos;
@@ -232,7 +237,7 @@ public final class SemanticIdCodec implements IdCodec {
 
   private StringBuilder appendPrefix(StringBuilder builder) {
     for (int i = 0; i < getPrefixNames().size(); ++i) {
-      builder.append(getPrefixNames().get(i)).append('.');
+      builder.append(getPrefixNames().get(i)).append(PREFIX_SEPARATOR);
     }
     return builder;
   }
@@ -260,8 +265,8 @@ public final class SemanticIdCodec implements IdCodec {
     final int len = semanticId.length();
     for (int i = prefixLength; i < len; ++i) {
       final char ch = semanticId.charAt(i);
-      if (ch == '.') {
-        return false; // disallow dots in ID
+      if (ch == PREFIX_SEPARATOR) {
+        return false; // disallow prefix separators in ID
       }
     }
 

@@ -8,7 +8,7 @@
   <packaging>jar</packaging>
   <name>Semantic ID</name>
   <url>https://github.com/truward/semantic-id</url>
-  <description>Utility library for creating meaningful IDs for use in SOA environment</description>
+  <description>Utilities for working with versioned entity-bound identifiers</description>
 
   <licenses>
     <license>
