@@ -19,10 +19,11 @@ Semantic ID includes 3 parts:
 
 Examples of such IDs: ``foo1-user-q6b60``, ``req-9j35zf3``.
 
-Requirements:
+Notes:
 
-* ID should be case insensitive, i.e. semantic ID ``a-b-1cd`` should always be equivalent to ``A-B-1CD`` and vice versa.
-* Encoded service name and version is always required part of semantic ID. E.g. ``foo1-qw1`` is a valid semantic ID (with service name ``foo`` and version ``1``), ``qw1`` is not.
+* ID are case insensitive, i.e. semantic ID ``a-b-1cd`` should always be equivalent to ``A-B-1CD`` and vice versa.
+* Encoded ID prefixes that are used to construct an instance of codec are always required when decoding an ID. E.g. ``foo1-qw1`` is a valid semantic ID (with service name ``foo`` and version ``1``), ``qw1`` is not.
+  * Note, that ID may be created without any prefixes, in this case only ID body is required for decoding
 
 # How to use
 
